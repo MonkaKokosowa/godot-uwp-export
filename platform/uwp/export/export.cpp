@@ -590,7 +590,7 @@ void AppxPackager::finish() {
 
 	blockmap_file->get_buffer(blockmap_buffer.ptrw(), blockmap_buffer.size());
 
-	add_file("AppxBlockMap.xml", blockmap_buffer.ptr(), blockmap_buffer.size(), -1, -1, true);
+	// add_file("AppxBlockMap.xml", blockmap_buffer.ptr(), blockmap_buffer.size(), -1, -1, true);
 
 	blockmap_file->close();
 	memdelete(blockmap_file);
@@ -608,7 +608,7 @@ void AppxPackager::finish() {
 
 	types_file->get_buffer(types_buffer.ptrw(), types_buffer.size());
 
-	add_file("[Content_Types].xml", types_buffer.ptr(), types_buffer.size(), -1, -1, true);
+	// add_file("[Content_Types].xml", types_buffer.ptr(), types_buffer.size(), -1, -1, true);
 
 	types_file->close();
 	memdelete(types_file);
