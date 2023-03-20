@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  joypad_uwp.h                                                          */
+/*  power_uwp.cpp                                                         */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,63 +28,50 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#ifndef JOYPAD_UWP_H
-#define JOYPAD_UWP_H
+#include "power_uwp.h"
 
-#include "main/input_default.h"
+PowerUWP::PowerUWP() :
+		nsecs_left(-1),
+		percent_left(-1),
+		power_state(OS::POWERSTATE_UNKNOWN) {
+}
 
-ref class JoypadUWP sealed {
-	/** clang-format breaks this, it does not understand this token. */
-	/* clang-format off */
-internal:
-	void register_events();
-	void process_controllers();
-	/* clang-format on */
+PowerUWP::~PowerUWP() {
+}
 
-	JoypadUWP();
-	JoypadUWP(InputDefault *p_input);
+bool PowerUWP::UpdatePowerInfo() {
+	// TODO, WinRT: Battery info is available on at least one WinRT platform (Windows Phone 8).  Implement UpdatePowerInfo as appropriate. */
+	/* Notes from SDL:
+	 * - the Win32 function, GetSystemPowerStatus, is not available for use on WinRT
+	 * - Windows Phone 8 has a 'Battery' class, which is documented as available for C++
+	 * - More info on WP8's Battery class can be found at http://msdn.microsoft.com/library/windowsphone/develop/jj207231
+	 */
+	return false;
+}
 
-private:
-	enum {
-		MAX_CONTROLLERS = 4,
-	};
+OS::PowerState PowerUWP::get_power_state() {
+	if (UpdatePowerInfo()) {
+		return power_state;
+	} else {
+		WARN_PRINT("Power management is not implemented on this platform, defaulting to POWERSTATE_UNKNOWN");
+		return OS::POWERSTATE_UNKNOWN;
+	}
+}
 
-	enum ControllerType {
-		GAMEPAD_CONTROLLER,
-		ARCADE_STICK_CONTROLLER,
-		RACING_WHEEL_CONTROLLER,
-	};
+int PowerUWP::get_power_seconds_left() {
+	if (UpdatePowerInfo()) {
+		return nsecs_left;
+	} else {
+		WARN_PRINT("Power management is not implemented on this platform, defaulting to -1");
+		return -1;
+	}
+}
 
-	struct ControllerDevice {
-		Windows::Gaming::Input::IGameController ^ controller_reference;
-
-		int id;
-		bool connected;
-		ControllerType type;
-		float ff_timestamp;
-		float ff_end_timestamp;
-		bool vibrating;
-
-		ControllerDevice() {
-			id = -1;
-			connected = false;
-			type = ControllerType::GAMEPAD_CONTROLLER;
-			ff_timestamp = 0.0f;
-			ff_end_timestamp = 0.0f;
-			vibrating = false;
-		}
-	};
-
-	ControllerDevice controllers[MAX_CONTROLLERS];
-
-	InputDefault *input;
-
-	void OnGamepadAdded(Platform::Object ^ sender, Windows::Gaming::Input::Gamepad ^ value);
-	void OnGamepadRemoved(Platform::Object ^ sender, Windows::Gaming::Input::Gamepad ^ value);
-
-	float axis_correct(double p_val, bool p_negate = false, bool p_trigger = false) const;
-	void joypad_vibration_start(int p_device, float p_weak_magnitude, float p_strong_magnitude, float p_duration, uint64_t p_timestamp);
-	void joypad_vibration_stop(int p_device, uint64_t p_timestamp);
-};
-
-#endif // JOYPAD_UWP_H
+int PowerUWP::get_power_percent_left() {
+	if (UpdatePowerInfo()) {
+		return percent_left;
+	} else {
+		WARN_PRINT("Power management is not implemented on this platform, defaulting to -1");
+		return -1;
+	}
+}

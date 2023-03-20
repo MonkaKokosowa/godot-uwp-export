@@ -32,19 +32,21 @@
 #define OS_UWP_H
 
 #include "context_egl_uwp.h"
-#include "core/input/input.h"
 #include "core/math/transform_2d.h"
+#include "core/os/input.h"
 #include "core/os/os.h"
-#include "core/string/ustring.h"
+#include "core/ustring.h"
 #include "drivers/xaudio2/audio_driver_xaudio2.h"
 #include "joypad_uwp.h"
+#include "main/input_default.h"
+#include "power_uwp.h"
 #include "servers/audio_server.h"
-#include "servers/rendering/renderer_compositor.h"
-#include "servers/rendering_server.h"
+#include "servers/visual/rasterizer.h"
+#include "servers/visual_server.h"
 
+#include <fcntl.h>
 #include <io.h>
 #include <stdio.h>
-
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -56,13 +58,13 @@ public:
 			CHAR_EVENT_MESSAGE
 		};
 
-		bool alt = false, shift = false, control = false;
-		MessageType type = KEY_EVENT_MESSAGE;
-		bool pressed = false;
-		Key keycode = Key::NONE;
-		unsigned int physical_keycode = 0;
-		unsigned int unicode = 0;
-		bool echo = false;
+		bool alt, shift, control;
+		MessageType type;
+		bool pressed;
+		unsigned int scancode;
+		unsigned int physical_scancode;
+		unsigned int unicode;
+		bool echo;
 		CorePhysicalKeyStatus status;
 	};
 
@@ -74,7 +76,7 @@ private:
 		KEY_EVENT_BUFFER_SIZE = 512
 	};
 
-	FILE *stdo = nullptr;
+	FILE *stdo;
 
 	KeyEvent key_event_buffer[KEY_EVENT_BUFFER_SIZE];
 	int key_event_pos;
@@ -87,18 +89,20 @@ private:
 	bool outside;
 	int old_x, old_y;
 	Point2i center;
-	RenderingServer *rendering_server = nullptr;
+	VisualServer *visual_server;
 	int pressrc;
 
-	ContextEGL_UWP *gl_context = nullptr;
+	ContextEGL_UWP *gl_context;
 	Windows::UI::Core::CoreWindow ^ window;
 
 	VideoMode video_mode;
 	int video_driver_index;
 
-	MainLoop *main_loop = nullptr;
+	MainLoop *main_loop;
 
 	AudioDriverXAudio2 audio_driver;
+
+	PowerUWP *power_manager;
 
 	MouseMode mouse_mode;
 	bool alt_mem;
@@ -106,11 +110,12 @@ private:
 	bool shift_mem;
 	bool control_mem;
 	bool meta_mem;
-	MouseButton last_button_state = MouseButton::NONE;
+	bool force_quit;
+	uint32_t last_button_state;
 
 	CursorShape cursor_shape;
 
-	InputDefault *input = nullptr;
+	InputDefault *input;
 
 	JoypadUWP ^ joypad;
 
@@ -162,13 +167,13 @@ public:
 	HANDLE mouse_mode_changed;
 
 	virtual void alert(const String &p_alert, const String &p_title = "ALERT!");
-	String get_stdin_string();
+	String get_stdin_string(bool p_block);
 
 	void set_mouse_mode(MouseMode p_mode);
 	MouseMode get_mouse_mode() const;
 
 	virtual Point2 get_mouse_position() const;
-	virtual MouseButton get_mouse_button_state() const;
+	virtual int get_mouse_button_state() const;
 	virtual void set_window_title(const String &p_title);
 
 	virtual void set_video_mode(const VideoMode &p_video_mode, int p_screen = 0);
@@ -183,20 +188,20 @@ public:
 	virtual MainLoop *get_main_loop() const;
 
 	virtual String get_name() const;
-	virtual String get_distribution_name() const;
-	virtual String get_version() const;
 
-	virtual DateTime get_datetime(bool p_utc) const;
+	virtual Date get_date(bool utc) const;
+	virtual Time get_time(bool utc) const;
 	virtual TimeZoneInfo get_time_zone_info() const;
 	virtual uint64_t get_unix_time() const;
+	virtual double get_subsecond_unix_time() const;
 
+	virtual bool can_draw() const;
 	virtual Error set_cwd(const String &p_cwd);
 
 	virtual void delay_usec(uint32_t p_usec) const;
 	virtual uint64_t get_ticks_usec() const;
 
-	virtual Error execute(const String &p_path, const List<String> &p_arguments, String *r_pipe = nullptr, int *r_exitcode = nullptr, bool read_stderr = false, Mutex *p_pipe_mutex = nullptr, bool p_open_console = false);
-	virtual Error create_process(const String &p_path, const List<String> &p_arguments, ProcessID *r_child_id = nullptr, bool p_open_console = false);
+	virtual Error execute(const String &p_path, const List<String> &p_arguments, bool p_blocking = true, ProcessID *r_child_id = NULL, String *r_pipe = NULL, int *r_exitcode = NULL, bool read_stderr = false, Mutex *p_pipe_mutex = NULL, bool p_open_console = false);
 	virtual Error kill(const ProcessID &p_pid);
 	virtual bool is_process_running(const ProcessID &p_pid) const;
 
@@ -209,7 +214,7 @@ public:
 
 	void set_cursor_shape(CursorShape p_shape);
 	CursorShape get_cursor_shape() const;
-	virtual void set_custom_mouse_cursor(const Ref<Resource> &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot);
+	virtual void set_custom_mouse_cursor(const RES &p_cursor, CursorShape p_shape, const Vector2 &p_hotspot);
 	void set_icon(const Ref<Image> &p_icon);
 
 	virtual String get_executable_path() const;
@@ -221,6 +226,7 @@ public:
 
 	virtual bool _check_internal_feature_support(const String &p_feature);
 
+	void update_clipboard();
 	void set_window(Windows::UI::Core::CoreWindow ^ p_window);
 	void screen_size_changed();
 
@@ -231,10 +237,10 @@ public:
 	virtual bool has_touchscreen_ui_hint() const;
 
 	virtual bool has_virtual_keyboard() const;
-	virtual void show_virtual_keyboard(const String &p_existing_text, const Rect2 &p_screen_rect = Rect2(), VirtualKeyboardType p_type = KEYBOARD_TYPE_DEFAULT, int p_max_input_length = -1, int p_cursor_start = -1, int p_cursor_end = -1);
+	virtual void show_virtual_keyboard(const String &p_existing_text, const Rect2 &p_screen_rect = Rect2(), bool p_multiline = false, int p_max_input_length = -1, int p_cursor_start = -1, int p_cursor_end = -1);
 	virtual void hide_virtual_keyboard();
 
-	virtual Error open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path = false, String *r_resolved_path = nullptr);
+	virtual Error open_dynamic_library(const String p_path, void *&p_library_handle, bool p_also_set_library_path = false);
 	virtual Error close_dynamic_library(void *p_library_handle);
 	virtual Error get_dynamic_library_symbol_handle(void *p_library_handle, const String p_name, void *&p_symbol_handle, bool p_optional = false);
 
@@ -242,9 +248,13 @@ public:
 
 	void run();
 
-	virtual bool get_swap_cancel_ok() { return true; }
+	virtual bool get_swap_ok_cancel() { return true; }
 
 	void input_event(const Ref<InputEvent> &p_event);
+
+	virtual OS::PowerState get_power_state();
+	virtual int get_power_seconds_left();
+	virtual int get_power_percent_left();
 
 	void queue_key_event(KeyEvent &p_event);
 
