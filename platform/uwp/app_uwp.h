@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  app.h                                                                 */
+/*  app_uwp.h                                                             */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,13 +28,13 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#pragma once
+#ifndef APP_UWP_H
+#define APP_UWP_H
 
 #include <string>
 
 #include <wrl.h>
 
-// ANGLE doesn't provide a specific lib for GLES3, so we keep using GLES2
 #include "GLES2/gl2.h"
 #include "os_uwp.h"
 
@@ -46,7 +46,7 @@ namespace GodotUWP
 	ref class App sealed : public Windows::ApplicationModel::Core::IFrameworkView
 	{
 	public:
-		App();
+		App() {}
 
 		// IFrameworkView Methods.
 		virtual void Initialize(Windows::ApplicationModel::Core::CoreApplicationView^ applicationView);
@@ -69,7 +69,6 @@ namespace GodotUWP
 		// Window event handlers.
 		void OnWindowSizeChanged(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::WindowSizeChangedEventArgs^ args);
 		void OnVisibilityChanged(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::VisibilityChangedEventArgs^ args);
-		void OnWindowActivated(CoreWindow ^ sender, WindowActivatedEventArgs ^ args);
 		void OnWindowClosed(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::CoreWindowEventArgs^ args);
 
 		void pointer_event(Windows::UI::Core::CoreWindow^ sender, Windows::UI::Core::PointerEventArgs^ args, bool p_pressed, bool p_is_wheel = false);
@@ -94,14 +93,14 @@ namespace GodotUWP
 
 		char** get_command_line(unsigned int* out_argc);
 
-		bool mWindowClosed;
-		bool mWindowVisible;
-		GLsizei mWindowWidth;
-		GLsizei mWindowHeight;
+		bool mWindowClosed = false;
+		bool mWindowVisible = true;
+		GLsizei mWindowWidth = 0;
+		GLsizei mWindowHeight = 0;
 
-		EGLDisplay mEglDisplay;
-		EGLContext mEglContext;
-		EGLSurface mEglSurface;
+		EGLDisplay mEglDisplay = EGL_NO_DISPLAY;
+		EGLContext mEglContext = EGL_NO_CONTEXT;
+		EGLSurface mEglSurface = EGL_NO_SURFACE;
 
 		CoreWindow^ window;
 		OS_UWP* os;
@@ -113,3 +112,5 @@ namespace GodotUWP
 }
 
 /* clang-format on */
+
+#endif // APP_UWP_H
